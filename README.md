@@ -1,0 +1,43 @@
+# Samsung TV Plus (STV)
+Open-Enigma2 plugin for Live-TV and VoD streams
+
+## Live-TV
+
+![Screenshot](s1.jpg)
+
+## Video-On-Demand
+
+![Screenshot](s2.jpg)
+
+## Features
+- Playback of Samsung TV Plus channels by country
+- Live TV bouquet creation with EPG support
+- VoD-style channel browsing by category
+- Picon (channel icon) management
+- Resume point support for VoD playback
+- TMDb/IMDb integration for movie/show info
+- Poster display for VoD movies
+
+## Supported Regions
+- Austria (AT)
+- Canada (CA)
+- Switzerland (CH)
+- Germany (DE)
+- Spain (ES)
+- France (FR)
+- United Kingdom (GB)
+- India (IN)
+- Italy (IT)
+- South Korea (KR)
+- United States (US)
+
+## Limitations
+- Samsung TV Plus supports OpenViX and compatible Open Enigma2 distributions.
+- Skin is optimized for Simple_Ten_Eighty system skin.
+
+## Languages
+- english
+- german
+
+## Links
+- Installation: https://opencockpit.github.io/SamsungTV
