@@ -55,6 +55,8 @@ def updateDataFolder(*_args, **_kwargs):
 
 def initMountChoices():
     choices = _getMountChoices()
+    if not choices:
+        choices = [("/tmp", "/tmp")]
     config.plugins.samsungtv.datalocation = ConfigSelection(choices=choices, default=_getMountDefault(choices))
     harddiskmanager.on_partition_list_change.append(_onPartitionChange)
     config.plugins.samsungtv.datalocation.addNotifier(updateDataFolder, immediate_feedback=False)
