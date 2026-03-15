@@ -9,7 +9,7 @@ from .Variables import USER_AGENT
 
 
 class SamsungTVRequest:
-    """API handler for Samsung TV Plus channels and VOD content."""
+    """API handler for Samsung TV Plus channels."""
 
     # i.mjh.nz endpoints
     CHANNELS_JSON_URL = "https://i.mjh.nz/SamsungTVPlus/.channels.json"
@@ -17,13 +17,6 @@ class SamsungTVRequest:
 
     # JMP2 proxy URL template
     JMP2_URL_TEMPLATE = "https://jmp2.uk/%s"
-
-    # Samsung TV Plus API for VOD content
-    SAMSUNG_API_BASE = "https://api.samsungtv.com/browser/v2"
-
-    # Placeholder pattern for runtime URL resolution
-    SAMSUNG_PATTERN = "SAMSUNG_SID_"
-    SAMSUNG_PLACEHOLDER = f"https://{{{SAMSUNG_PATTERN}%s}}.m3u8"
 
     def __init__(self):
         self.session = requests.Session()
@@ -77,12 +70,10 @@ class SamsungTVRequest:
             })
         return result
 
-    def getVODCategories(self, region=None):
-        """Get VOD categories with content from Samsung TV Plus.
+    def getCategories(self, region=None):
+        """Get channel categories from Samsung TV Plus.
 
-        Since Samsung TV Plus's primary content is live channels (which also
-        have on-demand clips), we organize them as VOD categories by group.
-        Returns a list of category dicts with items.
+        Returns a list of category dicts with channel items.
         """
         region = region or config.plugins.samsungtv.region.value
         channels = self.getChannels(region)
@@ -102,12 +93,8 @@ class SamsungTVRequest:
                 "name": ch["name"],
                 "summary": ch.get("description", ""),
                 "genre": group,
-                "rating": "",
-                "duration": 0,
-                "type": "movie",
+                "type": "channel",
                 "stream_url": ch.get("stream_url", ""),
-                "logo": ch.get("logo", ""),
-                "covers": [{"url": ch.get("logo", "")}] if ch.get("logo") else [],
             })
 
         # Sort categories alphabetically

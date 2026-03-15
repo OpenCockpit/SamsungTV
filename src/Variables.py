@@ -4,7 +4,6 @@ from Tools.Directories import resolveFilename, SCOPE_CONFIG
 
 CONFIG_FOLDER = path.join(path.realpath(resolveFilename(SCOPE_CONFIG)), "SamsungTV")
 TIMER_FILE = path.join(CONFIG_FOLDER, "Samsungtvplus.timer")
-RESUMEPOINTS_FILE = path.join(CONFIG_FOLDER, "resumepoints.pkl")
 PLUGIN_FOLDER = path.dirname(path.realpath(__file__))
 PLUGIN_ICON = "plugin.png"
 BOUQUET_FILE = "userbouquet.samsungtv_%s.tv"
