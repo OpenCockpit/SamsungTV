@@ -3,13 +3,10 @@
 import os
 import re
 from time import strftime, localtime
-from urllib.parse import quote
 
 from Components.ActionMap import ActionMap, HelpableActionMap
 from Components.config import config
 from Components.Label import Label
-from Components.MenuList import MenuList
-from Components.MultiContent import MultiContentEntryText, MultiContentEntryPixmapAlphaBlend
 from Components.Sources.StaticText import StaticText
 from Plugins.Plugin import PluginDescriptor
 from Screens.HelpMenu import HelpableScreen
@@ -17,12 +14,10 @@ from Screens.InfoBar import MoviePlayer
 from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
 from Screens.Setup import Setup
-from Tools.Directories import fileExists, resolveFilename, SCOPE_CURRENT_SKIN
-from Tools.LoadPixmap import LoadPixmap
+from Tools.Directories import fileExists
 from twisted.internet import threads
 
-from enigma import BT_KEEP_ASPECT_RATIO, BT_SCALE, eListboxPythonMultiContent, eServiceReference, gFont
-from skin import applySkinFactor, fonts, parameters
+from skin import parameters
 
 from . import _
 from .SamsungTVConfig import getselectedregions, NUMBER_OF_LIVETV_BOUQUETS
@@ -30,31 +25,6 @@ from .SamsungTVRequest import samsungRequest
 from .SamsungTVDownload import SamsungTVDownload, Silent
 from .PiconFetcher import PiconFetcher
 from .Variables import TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE, PLUGIN_ICON
-
-
-class SamsungList(MenuList):
-    def __init__(self, entries):
-        self.menu_png = LoadPixmap(x if fileExists(x := resolveFilename(SCOPE_CURRENT_SKIN, "icons/samsung_menu.png")) else f"{PLUGIN_FOLDER}/images/menu.png") if fileExists(f"{PLUGIN_FOLDER}/images/menu.png") else None
-        self.cine_png = LoadPixmap(x if fileExists(x := resolveFilename(SCOPE_CURRENT_SKIN, "icons/samsung_cine.png")) else f"{PLUGIN_FOLDER}/images/cine.png")
-
-        MenuList.__init__(self, entries, content=eListboxPythonMultiContent)
-        font = fonts.get("SamsungList", applySkinFactor("Regular", 19, 35))
-        self.l.setFont(0, gFont(font[0], font[1]))
-        self.l.setItemHeight(font[2])
-
-    def listentry(self, name, data, _id, epid=0):
-        res = [(name, data, _id, epid)]
-
-        png = None
-        if data == "menu":
-            png = self.menu_png
-        elif data == "channel":
-            png = self.cine_png
-
-        res.append(MultiContentEntryText(pos=applySkinFactor(45, 7), size=applySkinFactor(533, 35), font=0, text=name))
-        if png:
-            res.append(MultiContentEntryPixmapAlphaBlend(pos=applySkinFactor(7, 9), size=applySkinFactor(20, 20), png=png, flags=BT_SCALE | BT_KEEP_ASPECT_RATIO))
-        return res
 
 
 class SamsungTV(Screen, HelpableScreen):
@@ -68,9 +38,6 @@ class SamsungTV(Screen, HelpableScreen):
             </widget>
 
             <widget name="loading" position="center,center" size="800,60" font="Regular;50" backgroundColor="#00000000" transparent="0" zPosition="10" halign="center" valign="center" />
-            <widget source="playlist" render="Label" position="400,48" size="1150,55" font="Regular;40" backgroundColor="#00000000" transparent="5" foregroundColor="#00ffff00" zPosition="2" halign="center" />
-            <eLabel position="70,170" size="1780,750" zPosition="1" backgroundColor="#16101113"/><!-- list background -->
-            <widget name="feedlist" position="70,170" size="1780,728" scrollbarMode="showOnDemand" enableWrapAround="1" transparent="1" zPosition="5" foregroundColor="#00ffffff" backgroundColorSelected="#00ff0063" backgroundColor="#00000000" />
 
             <widget source="updated" render="Label" position="70,950" size="615,50" zPosition="1" backgroundColor="#16101113" foregroundColor="#16101113" font="Regular;1"><!-- updated background -->
                 <convert type="ConditionalShowHide"/>
@@ -93,9 +60,6 @@ class SamsungTV(Screen, HelpableScreen):
 
         self.colors = parameters.get("SamsungTvColors", [])
 
-        self.titlemenu = _("Channel Categories")
-        self["feedlist"] = SamsungList([])
-        self["playlist"] = StaticText(self.titlemenu)
         self["loading"] = Label(_("Loading data... Please wait"))
         self["key_red"] = StaticText(_("Exit"))
         self["key_green"] = StaticText()
@@ -105,10 +69,8 @@ class SamsungTV(Screen, HelpableScreen):
         self["actions"] = HelpableActionMap(
             self, ["SetupActions", "InfobarChannelSelection", "MenuActions"],
             {
-                "ok": (self.action, _("Go forward one level including starting playback")),
                 "cancel": (self.exit, _("Go back one level including exiting")),
                 "save": (self.green, _("Create or update Samsung TV Plus live bouquets")),
-                "historyBack": (self.back, _("Go back one level")),
                 "menu": (self.loadSetup, _("Open the plugin configuration screen")),
             }, -1
         )
@@ -117,113 +79,6 @@ class SamsungTV(Screen, HelpableScreen):
 
         if self.updatebutton not in Silent.afterUpdate:
             Silent.afterUpdate.append(self.updatebutton)
-
-        self.initialise()
-        self.onLayoutFinish.append(self.getCategories)
-
-    def initialise(self):
-        self.region = config.plugins.samsungtv.region.value
-        self.channels = []
-        self.menu = []
-        self.history = []
-        self["feedlist"].setList([])
-        self["loading"].show()
-        self.title = _("Samsung TV Plus") + " - " + self.titlemenu
-
-    def getCategories(self):
-        self.categoryItems = {}
-        threads.deferToThread(samsungRequest.getCategories, self.region).addCallback(self.getCategoriesCallback)
-
-    def getCategoriesCallback(self, categories):
-        if not categories:
-            self.session.open(MessageBox, _("There is no data, it is possible that Samsung TV Plus is not available in your region"), type=MessageBox.TYPE_ERROR, timeout=10)
-        else:
-            for category in categories:
-                self.buildlist(category)
-            self.menu.sort(key=lambda x: x.casefold())
-            for _key, items in self.categoryItems.items():
-                items.sort(key=lambda x: x[1].casefold())
-            entries = []
-            for key in self.menu:
-                entries.append(self["feedlist"].listentry(key, "menu", ""))
-            self["feedlist"].setList(entries)
-        self["loading"].hide()
-
-    def buildlist(self, category):
-        name = category["name"]
-        self.categoryItems[name] = []
-        self.menu.append(name)
-        items = category.get("items", [])
-        for item in items:
-            itemid = item.get("_id", "")
-            if not itemid:
-                continue
-            itemname = item.get("name", "")
-            itemsummary = item.get("summary", "")
-            itemgenre = item.get("genre", "")
-            itemtype = item.get("type", "channel")
-            stream_url = item.get("stream_url", "")
-            self.categoryItems[name].append((itemid, itemname, itemsummary, itemgenre, itemtype, stream_url))
-
-    def getSelection(self):
-        index = self["feedlist"].getSelectionIndex()
-        if current := self["feedlist"].getCurrent():
-            data = current[0]
-            return index, data[0], data[1], data[2]
-        return None
-
-    def action(self):
-        if not (selection := self.getSelection()):
-            return
-        self.lastAction = self.action
-        index, name, __type, _id = selection
-        menu = []
-        menuact = self.titlemenu
-        if __type == "menu":
-            self.channels = self.categoryItems[self.menu[index]]
-            for x in self.channels:
-                sname = x[1]
-                stype = x[4]
-                sid = x[0]
-                menu.append(self["feedlist"].listentry(sname, stype, sid))
-            self["feedlist"].moveToIndex(0)
-            self["feedlist"].setList(menu)
-            self.titlemenu = name
-            self["playlist"].text = self.titlemenu
-            self.title = _("Samsung TV Plus") + " - " + self.titlemenu
-            self.history.append((index, menuact))
-        elif __type == "channel":
-            film = self.channels[index]
-            sid = film[0]
-            name = film[1]
-            url = film[5]
-            self.playStream(name, sid, url)
-
-    def back(self):
-        if not (selection := self.getSelection()):
-            return
-        self.lastAction = self.back
-        _index, _name, __type, _id = selection
-        menu = []
-        if self.history:
-            hist = self.history[-1][0]
-            histname = self.history[-1][1]
-            if __type == "channel":
-                for key in self.menu:
-                    menu.append(self["feedlist"].listentry(key, "menu", ""))
-            self["feedlist"].setList(menu)
-            self.history.pop()
-            self["feedlist"].moveToIndex(hist)
-            self.titlemenu = histname
-            self["playlist"].text = self.titlemenu
-            self.title = _("Samsung TV Plus") + " - " + self.titlemenu
-
-    def playStream(self, name, sid, url=None):
-        if url and name:
-            string = f"4097:0:0:0:0:0:0:0:0:0:{quote(url)}:{quote(name)}"
-            reference = eServiceReference(string)
-            if "m3u8" in url.lower() or "jmp2" in url.lower() or "127.0.0.1" in url:
-                self.session.open(Samsung_Player, service=reference, sid=sid)
 
     def green(self):
         self.session.openWithCallback(self.endupdateLive, SamsungTVDownload)
@@ -248,17 +103,10 @@ class SamsungTV(Screen, HelpableScreen):
             self["updated"].text = ""
 
     def exit(self, *_args, **_kwargs):
-        if self.history:
-            self.back()
-        else:
-            self.close()
+        self.close()
 
     def loadSetup(self):
-        def loadSetupCallback(_result=None):
-            if config.plugins.samsungtv.region.value != self.region:
-                self.initialise()
-                self.getCategories()
-        self.session.openWithCallback(loadSetupCallback, SamsungSetup)
+        self.session.open(SamsungSetup)
 
     def close(self, *_args, **_kwargs):
         if self.updatebutton in Silent.afterUpdate:
